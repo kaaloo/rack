@@ -251,6 +251,12 @@
         "Description" : "",
         "AllowedValues": [ "Yes", "No" ]
       },
+      "{{ upper $balancer.ProcessName }}Port{{ .Balancer }}ProxyProtocol": {
+        "Type" : "String",
+        "Default" : "No",
+        "Description" : "",
+        "AllowedValues": [ "Yes", "No" ]
+      },
     {{ end }}
   {{ end }}
 {{ end }}
@@ -347,7 +353,25 @@
         ],
         "LBCookieStickinessPolicy": [{ "PolicyName": "affinity" }],
         "LoadBalancerName": {{ .LoadBalancerName }},
-        "SecurityGroups": [ { "Ref": "{{ .ResourceName }}SecurityGroup" } ]
+        "SecurityGroups": [ { "Ref": "{{ .ResourceName }}SecurityGroup" } ],
+        "Policies": [
+          {
+            "PolicyName": "EnableProxyProtocol",
+            "PolicyType": "ProxyProtocolPolicyType",
+            "Attributes": [{
+                "Name": "ProxyProtocol",
+                "Value": "true"
+            }],
+            "InstancePorts": [
+              {{ range .PortMappings }}
+                { "Fn::If": [ "ProxyProtocol{{ upper $balancer.ProcessName }}Port{{ .Balancer }}",
+                  { "Ref": "{{ upper $balancer.ProcessName }}Port{{ .Balancer }}Balancer" }
+                ] },
+              {{ end }}
+              { "Ref" : "AWS::NoValue" }
+            ]
+          }
+        ]
       }
     },
   {{ end }}
