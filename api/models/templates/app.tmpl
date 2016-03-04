@@ -352,28 +352,30 @@
           {{ end }}
           { "Ref": "AWS::NoValue" }
         ],
+        {{ if .HasBalancerPolicies }}
+          "Policies": [
+            {
+              "PolicyName": "EnableProxyProtocol",
+              "PolicyType": "ProxyProtocolPolicyType",
+              "Attributes": [{
+                  "Name": "ProxyProtocol",
+                  "Value": "true"
+              }],
+              "InstancePorts": [
+                {{ range .PortMappings }}
+                  { "Fn::If": [ "ProxyProtocol{{ upper $balancer.ProcessName }}Port{{ .Balancer }}",
+                    { "Ref": "{{ upper $balancer.ProcessName }}Port{{ .Balancer }}Balancer" }
+                  ] },
+                {{ end }}
+                { "Ref" : "AWS::NoValue" }
+              ]
+            }
+          ],
+        {{ end }}
         "LBCookieStickinessPolicy": [{ "PolicyName": "affinity" }],
         "LoadBalancerName": {{ .LoadBalancerName }},
-        "SecurityGroups": [ { "Ref": "{{ .ResourceName }}SecurityGroup" } ],
-        "Policies": [
-          {
-            "PolicyName": "EnableProxyProtocol",
-            "PolicyType": "ProxyProtocolPolicyType",
-            "Attributes": [{
-                "Name": "ProxyProtocol",
-                "Value": "true"
-            }],
-            "InstancePorts": [
-              {{ range .PortMappings }}
-                { "Fn::If": [ "ProxyProtocol{{ upper $balancer.ProcessName }}Port{{ .Balancer }}",
-                  { "Ref": "{{ upper $balancer.ProcessName }}Port{{ .Balancer }}Balancer" }
-                ] },
-              {{ end }}
-              { "Ref" : "AWS::NoValue" }
-            ]
-          }
-        ]
-      }
+        "SecurityGroups": [ { "Ref": "{{ .ResourceName }}SecurityGroup" } ]
+      },
     },
   {{ end }}
 {{ end }}
