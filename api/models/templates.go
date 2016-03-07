@@ -88,7 +88,7 @@ func templatesAppTmpl() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "templates/app.tmpl", size: 16119, mode: os.FileMode(436), modTime: time.Unix(1457110631, 0)}
+	info := bindataFileInfo{name: "templates/app.tmpl", size: 16119, mode: os.FileMode(436), modTime: time.Unix(1457364648, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
