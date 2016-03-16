@@ -17,7 +17,7 @@ func init() {
 			appFlag,
 			cli.BoolFlag{
 				Name:  "no-cache",
-				Usage: "pull and build from fresh images",
+				Usage: "pull fresh image dependencies",
 			},
 			cli.BoolFlag{
 				Name:  "incremental",
@@ -27,6 +27,11 @@ func init() {
 				Name:  "file, f",
 				Value: "docker-compose.yml",
 				Usage: "location of docker-compose.yml",
+			},
+			cli.StringFlag{
+				Name:  "description",
+				Value: "",
+				Usage: "description of the build",
 			},
 		},
 	})
@@ -66,7 +71,7 @@ func cmdDeploy(c *cli.Context) {
 	}
 
 	// build
-	release, err := executeBuild(c, dir, app, c.String("file"))
+	release, err := executeBuild(c, dir, app, c.String("file"), c.String("description"))
 
 	if err != nil {
 		stdcli.Error(err)

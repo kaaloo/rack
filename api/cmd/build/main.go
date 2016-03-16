@@ -3,10 +3,12 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +31,7 @@ func main() {
 	push := flag.String("push", "", "push build to this prefix when done")
 	dockercfg := flag.String("dockercfg", "", "dockercfg auth json for pull")
 	noCache := flag.Bool("no-cache", false, "skip the docker cache")
-	config := flag.String("config", "docker-compose.yml", "docker compose filename")
+	manifestPath := flag.String("manifest", "docker-compose.yml", "docker compose filename")
 	flatten := flag.String("flatten", "", "flatten images into a single namespace")
 
 	flag.Parse()
@@ -52,7 +54,7 @@ func main() {
 		die(err)
 	}
 
-	m, err := manifest.Read(dir, *config)
+	m, err := manifest.Read(dir, *manifestPath)
 
 	if err != nil {
 		die(err)
@@ -139,14 +141,63 @@ func clone(source, app string) (string, error) {
 			return "", err
 		}
 	default:
+		u, err := url.Parse(source)
+
+		if err != nil {
+			return "", err
+		}
+
+		// if URL has a fragment, i.e. http://github.com/nzoschke/httpd.git#1a2b4aac045609f09de34294de61b45344f419de
+		// split it off and pass along http://github.com/nzoschke/httpd.git for `git clone`
+		commitish := u.Fragment
+		u.Fragment = ""
+		repo := u.String()
+
+		// if URL is a ssh/git url, i.e. ssh://user:base64(privatekey)@server/project.git
+		// decode and write private key to disk and pass along user@service:project.git for `git clone`
+		if u.Scheme == "ssh" {
+			repo = fmt.Sprintf("%s@%s%s", u.User.Username(), u.Host, u.Path)
+
+			if pass, ok := u.User.Password(); ok {
+				key, err := base64.StdEncoding.DecodeString(pass)
+
+				if err != nil {
+					die(err)
+				}
+
+				err = os.Mkdir("/root/.ssh", 0700)
+
+				if err != nil {
+					die(err)
+				}
+
+				err = ioutil.WriteFile("/root/.ssh/id_rsa", key, 0400)
+
+				if err != nil {
+					die(err)
+				}
+			}
+
+			// don't interactive prompt for known hosts and fingerprints
+			os.Setenv("GIT_SSH_COMMAND", "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no")
+		}
+
 		if err = writeFile("/usr/local/bin/git-restore-mtime", "git-restore-mtime", 0755, nil); err != nil {
 			return "", err
 		}
 
-		err = run("git", tmp, "git", "clone", "--progress", "-v", source, clone)
+		err = run("git", tmp, "git", "clone", "--progress", "-v", repo, clone)
 
 		if err != nil {
 			return "", err
+		}
+
+		if commitish != "" {
+			err = run("git", clone, "git", "checkout", commitish)
+
+			if err != nil {
+				return "", err
+			}
 		}
 
 		err = run("git", clone, "/usr/local/bin/git-restore-mtime", ".")
@@ -250,7 +301,7 @@ func run(prefix, dir string, command string, args ...string) error {
 	}
 
 	cmd.Start()
-	go prefixReader(stdout, prefix)
+	prefixReader(stdout, prefix)
 	err = cmd.Wait()
 
 	if err != nil {
