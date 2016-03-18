@@ -284,21 +284,6 @@ func (mb ManifestBalancer) Scheme() string {
 	return "internal"
 }
 
-func (mb ManifestBalancer) HasBalancerPolicies() bool {
-	hasPolicies := false
-
-	if mb.Entry.app != nil && mb.Entry.app.IsBound() {
-		// Enabling ProxyProtocol on a port requires a policy
-		for _, port := range mb.PortMappings() {
-			if (mb.Entry.app.Parameters[fmt.Sprintf("%sPort%sProxyProtocol", mb.ProcessName(), port.Balancer)] == "Yes") {
-				hasPolicies = true
-			}
-		}
-	}
-
-	return hasPolicies
-}
-
 func (me *ManifestEntry) BalancerResourceName() string {
 	return ""
 }
